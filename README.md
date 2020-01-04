@@ -1,1 +1,1 @@
-# process-singularity
+This repo contains work related to containerising software component of PROCESS use case 2 (UC#2), essentially composed of Singularity recipe files and patches for fixing issues or adding features into those components.
