@@ -1,0 +1,52 @@
+Bootstrap: shub
+From: tikk3r/lofar-grid-hpccloud:lofar_sksp
+#Bootstrap: localimage
+#From: lofar-2idg.simg
+
+%files
+    remotecommand.patch /opt/lofar
+
+
+%post
+	# Set-up environment
+	export LC_ALL=C
+	export INSTALLDIR=/opt/lofar
+
+	# Make aware of existing libraries in image
+	source ${INSTALLDIR}/init.sh
+
+	# Install specific version of aplpy
+	# version 2 depends on python3 which breaks compatibility
+	pip install --upgrade 'aplpy>=1,<2'
+
+	# Link DPPP into lofar folder
+	ln -s ${INSTALLDIR}/DPPP/bin/DPPP ${INSTALLDIR}/lofar/bin/DPPP
+
+	# Download factor source
+	git clone https://github.com/lofar-astron/factor.git ${INSTALLDIR}/factor
+	cd ${INSTALLDIR}/factor
+
+        # SM: patch script make_selfcal_images.py for logging issue
+        #patch -i /opt/lofar/make_selfcal_images.patch factor/scripts/make_selfcal_images.py
+	patch -i /opt/lofar/remotecommand.patch /opt/lofar/lofar/lib64/python2.7/site-packages/lofarpipe/support/remotecommand.py
+
+	# Install factor
+	python setup.py install
+
+	# Missing dependencies after install
+	# checkfactor
+	pip install shapely
+
+%runscript
+	exec bash "$@"
+
+%help
+	Factor version 2.0
+	Provides:
+		runfactor <parset>
+		checkfactor <parset>
+		archivefactor <parset> <output dir>
+		unarchivefactor <archive dir> <output dir>
+
+	Command example:
+	singularity exec -B /var/scratch/${USER} factor.simg runfactor factor.parset

@@ -1,0 +1,81 @@
+#Bootstrap: shub
+#From: tikk3r/lofar-grid-hpccloud:lofar
+Bootstrap: localimage
+From: lofar-2.simg
+
+%help
+	This Singularity image contains an install of ddf-pipeline.
+
+	Runtime example:
+	$ singularity exec ddf-pipeline.simg tier1.cfg
+
+	The home directory is already mounted into the container by default.
+	If your data is on /var/scratch/$USER/, you can bind the directory into the container at for example /data using the -B/--bind option
+	$ singularity exec -B /var/scratch/$USER/:/data ddf-pipeline.simg tier1.cfg
+
+%environment
+	# INSTALLDIR is already defined in bootstrap image
+	source ${INSTALLDIR}/scripts/init.lofar.sh
+	source ${INSTALLDIR}/scripts/init.ddf-pipeline.sh
+	export DDF_PIPELINE_CATALOGS=${INSTALLDIR}/DDFCatalogs
+
+%files
+    cache-fix.patch /opt/lofar
+
+%post
+	# Set-up environment
+	export LC_ALL=C
+	export INSTALLDIR=/opt/lofar
+	export PYTHON_VERSION=2.7
+	alias make=${INSTALLDIR}/make/bin/make
+	mkdir -p ${INSTALLDIR}/scripts
+
+	# Install system dependencies
+	yum install -y Cython fpack
+
+	# Install ddf-pipeline
+	cd ${INSTALLDIR}
+	git clone --single-branch -b DR1 https://github.com/mhardcastle/ddf-pipeline.git
+
+	# Apply patches to ddf-pipeline
+	cd ${INSTALLDIR}
+	git clone https://github.com/tvanhateren/singularity
+	#cd ddf-pipeline
+	patch ddf-pipeline/scripts/analyse_logs.py singularity/patches/matplotlib_spectral.patch
+	#patch ddf-pipeline/utils/auxcodes.py singularity/patches/double_fits.patch
+	#patch ddf-pipeline/utils/get_cat.py singularity/patches/panstarrs.patch
+
+        # SM: patch script pipeline.py for caching issue
+        patch -i /opt/lofar/cache-fix.patch ddf-pipeline/scripts/pipeline.py
+
+	# moving init.sh because install.sh also writes to that same file
+	mv init.sh scripts/init.lofar.sh
+	bash ddf-pipeline/scripts/install.sh
+	mv init.sh scripts/init.ddf-pipeline.sh
+
+	# Python dependencies
+	# first set PYTHONPATH
+	source ${INSTALLDIR}/scripts/init.lofar.sh
+	pip install -r DDFacet/requirements.txt
+
+	# Requirements in docs/manual.md
+	pip install astropy-healpix emcee pyrap pyregion reproject
+
+	# Requirements not mentioned
+	pip install prettytable requests
+
+	# Catalogs
+	mkdir DDFCatalogs
+	wget -P DDFCatalogs http://tgssadr.strw.leidenuniv.nl/catalogs/TGSSADR1_7sigma_catalog.fits
+	wget -P DDFCatalogs https://www.extragalactic.info/bootstrap/VLSS.fits
+	wget -P DDFCatalogs https://www.extragalactic.info/bootstrap/wenss.fits
+	# wget -P DDFCatalogs https://www.extragalactic.info/bootstrap/NVSS.fits
+
+		# create init.sh because of the bootstrap image environment
+	touch ${INSTALLDIR}/init.sh
+
+	echo "$(tput setaf 2)> Done installing: $(tput setaf 7)"
+	ls -lah ${INSTALLDIR}
+
+%runscript
+	exec bash "$@"
