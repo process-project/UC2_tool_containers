@@ -1,7 +1,7 @@
-Bootstrap: shub
-From: tikk3r/lofar-grid-hpccloud:lofar_sksp
-#Bootstrap: localimage
-#From: lofar-2idg.simg
+#Bootstrap: shub
+#From: tikk3r/lofar-grid-hpccloud:lofar_sksp
+Bootstrap: localimage
+From: lofar.sif
 
 %files
     remotecommand.patch /opt/lofar
@@ -18,6 +18,9 @@ From: tikk3r/lofar-grid-hpccloud:lofar_sksp
 	# Install specific version of aplpy
 	# version 2 depends on python3 which breaks compatibility
 	pip install --upgrade 'aplpy>=1,<2'
+
+        pip uninstall -y Jinja2
+        pip install Jinja2==2.10.1
 
 	# Link DPPP into lofar folder
 	ln -s ${INSTALLDIR}/DPPP/bin/DPPP ${INSTALLDIR}/lofar/bin/DPPP

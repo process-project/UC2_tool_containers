@@ -1,0 +1,48 @@
+Bootstrap: localimage
+From: factor.sif
+
+%files
+    cwl /opt/lofar
+    templates /opt/lofar
+#    prefactor /opt/lofar
+
+%environment
+    . $INSTALLDIR/init.sh
+
+#%post -c /bin/bash
+%post
+        # install cwltool
+        pip install cwltool
+
+        #SM working: yum install -y nodejs nodejs-dev npm libssl-dev
+        #SM commented out:apt-get clean
+        curl -sL https://rpm.nodesource.com/setup_10.x | bash -
+	yum install -y nodejs
+
+        #SM: install prefactor
+        git clone https://github.com/lofar-astron/prefactor.git /opt/lofar/prefactor
+	cd /opt/lofar/prefactor
+	git checkout 92fc0339b31a56ea9aeb49ae84ee89c334a0c543
+
+%runscript
+	#!/bin/bash
+	all_args=()
+	for ARGUMENT in "$@"
+	do
+    		KEY=$(echo $ARGUMENT | cut -f1 -d=)
+    		VALUE=$(echo $ARGUMENT | cut -f2 -d=)
+    		arg="--${KEY} ${VALUE}"
+    		all_args+=( ${arg} )
+	done
+	cwltool --preserve-entire-environment /opt/lofar/cwl/uc2.cwl "${all_args[@]}"
+
+%help
+	Factor version 2.0
+	Provides:
+		runfactor <parset>
+		checkfactor <parset>
+		archivefactor <parset> <output dir>
+		unarchivefactor <archive dir> <output dir>
+
+	Command example:
+	singularity exec -B /var/scratch/${USER} factor.simg runfactor factor.parset
